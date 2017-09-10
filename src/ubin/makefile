@@ -46,7 +46,7 @@ CFLAGS:=$(filter-out -Werror,$(CFLAGS))
 .PHONY: nim
 
 # Builds everything.
-all: cat chgrp chmod chown cp echo kill ln login ls mv nice pwd rm stat sync \
+all:: cat chgrp chmod chown cp echo kill ln login ls mv nice pwd rm stat sync \
 	 touch tsh ps clear nim
 
 # Builds cat.
@@ -142,7 +142,7 @@ nim:
 	$(CC) $(CFLAGS) $(LDFLAGS) nim/*.c -o $(UBINDIR)/nim $(LIBDIR)/libc.a
 
 # Clean compilation files.
-clean:
+clean::
 	@rm -f $(UBINDIR)/cat
 	@rm -f $(UBINDIR)/chgrp
 	@rm -f $(UBINDIR)/chmod
@@ -166,3 +166,12 @@ clean:
 	@rm -f $(UBINDIR)/ps
 	@rm -f $(UBINDIR)/clear
 	@rm -f $(UBINDIR)/nim
+
+# START auto-generated section {
+.PHONY: yes
+all:: yes
+clean::
+	@rm -f $(UBINDIR)/yes
+yes:
+	$(CC) $(CFLAGS) $(LDFLAGS) yes/*.c -o $(UBINDIR)/yes $(LIBDIR)/libc.a
+#} // END auto-generated section
