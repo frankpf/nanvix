@@ -18,6 +18,8 @@
 # along with Nanvix.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+CFLAGS:=$(filter-out -Werror,$(CFLAGS))
+
 # Conflicts.
 .PHONY: cat
 .PHONY: chgrp
