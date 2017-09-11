@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+import sys
+import subprocess
+import os
+
+def help(name):
+    print("Usage: {} binary_name".format(name))
+    sys.exit(0)
+
+# Main
+
+if len(sys.argv) != 2:
+    help(sys.argv[0])
+
+name = sys.argv[1]
+
+print('Creating directory...')
+os.makedirs(name, exist_ok=True)
+
+print('Editing makefile...')
+with open('./makefile', 'r') as f:
+    content = f.read()
+    output = content
+    output = output.replace('all: ', 'all:: ')
+    output = output.replace('clean:\n', 'clean::\n')
+
+    output += "\n# START auto-generated section {"
+    output += "\n.PHONY: {}".format(name)
+    output += "\nall:: {}".format(name)
+    output += "\nclean::\n\t@rm -f $(UBINDIR)/{}".format(name)
+    output += "\n{0}:\n\t$(CC) $(CFLAGS) $(LDFLAGS) {0}/*.c -o $(UBINDIR)/{0} $(LIBDIR)/libc.a".format(name)
+    output += "\n#} // END auto-generated section\n"
+
+with open('./makefile', 'w+') as f:
+    f.write(output)
