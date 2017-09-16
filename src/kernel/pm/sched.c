@@ -18,6 +18,7 @@
  * along with Nanvix. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <nanvix/klib.h>
 #include <nanvix/clock.h>
 #include <nanvix/const.h>
 #include <nanvix/hal.h>
@@ -59,6 +60,24 @@ PUBLIC void resume(struct process *proc)
 		sched(proc);
 }
 
+PUBLIC int NEXT_INDEX(int queue) {
+	struct process *p;
+	int max = 0;
+	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
+		if (p->queue == queue && p->queue_position > max) {
+			max = p->queue_position;
+		}
+	}
+	return max+1;
+}
+
+PUBLIC int QUEUE_QUANTUM(int queue) {
+	return (queue + 1) * BASE_QUANTUM;
+}
+
+PUBLIC int YIELD_CALLS = 0;
+PUBLIC int REARRANGE_PERIOD = 200;
+
 /**
  * @brief Yields the processor.
  */
@@ -67,12 +86,38 @@ PUBLIC void yield(void)
 	struct process *p;    /* Working process.     */
 	struct process *next; /* Next process to run. */
 
+    /* Move all jobs to the topmost queue */
+    if (YIELD_CALLS >= REARRANGE_PERIOD) {
+    	int i = 0;
+    	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
+    		p->queue = 0;
+    		/* Workaround to prevent integer overflow */
+    		p->queue_position = i;
+    		i++;
+    	}
+    	YIELD_CALLS = 0;
+    }
+
 	/* Re-schedule process for execution. */
 	if (curr_proc->state == PROC_RUNNING)
 		sched(curr_proc);
 
 	/* Remember this process. */
 	last_proc = curr_proc;
+
+
+	/* Move down one queue */
+	if (curr_proc->curr_quantum <= 0 && curr_proc->queue < MAX_QUEUE) {
+		curr_proc->queue++;
+		curr_proc->curr_quantum = QUEUE_QUANTUM(curr_proc->queue);
+		curr_proc->counter = curr_proc->curr_quantum;
+	} else {
+		/* Update current process quantum */
+		curr_proc->curr_quantum = curr_proc->counter;
+	}
+
+	/* Update queue position to last position */
+	curr_proc->queue_position = NEXT_INDEX(curr_proc->queue);
 
 	/* Check alarm. */
 	for (p = FIRST_PROC; p <= LAST_PROC; p++)
@@ -86,35 +131,34 @@ PUBLIC void yield(void)
 			p->alarm = 0, sndsig(p, SIGALRM);
 	}
 
-	/* Choose a process to run next. */
+	int min_queue = MAX_QUEUE;
+	/* Find minimum queue */
+	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
+		if (IS_VALID(p) && p->state == PROC_READY && p->queue < min_queue) {
+			min_queue = p->queue;
+		}
+	}
+	
+	/* Find minimum position */
 	next = IDLE;
-	for (p = FIRST_PROC; p <= LAST_PROC; p++)
-	{
-		/* Skip non-ready process. */
-		if (p->state != PROC_READY)
+	int min_position = 1000;
+	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
+		/* Skip processes not in min. queue */
+		if (p->queue != min_queue) {
 			continue;
-		
-		/*
-		 * Process with higher
-		 * waiting time found.
-		 */
-		if (p->counter > next->counter)
-		{
-			next->counter++;
+		}
+	
+		if (IS_VALID(p) && p->state == PROC_READY && p->queue_position < min_position) {
+			min_position = p->queue_position;
 			next = p;
 		}
-			
-		/*
-		 * Increment waiting
-		 * time of process.
-		 */
-		else
-			p->counter++;
 	}
+
+	YIELD_CALLS++;
 	
 	/* Switch to next process. */
 	next->priority = PRIO_USER;
 	next->state = PROC_RUNNING;
-	next->counter = PROC_QUANTUM;
+	next->counter = next->curr_quantum;
 	switch_to(next);
 }

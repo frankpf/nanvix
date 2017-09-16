@@ -77,17 +77,18 @@ PUBLIC int sys_ps()
 
 	kprintf("------------------------------- Process Status"
 			" -------------------------------\n"
-		    "NAME               PID   UID       PRIORITY   NICE"
+		    "NAME               PID   UID  QUEUE  POS   QUANTUM"
 		    "   UTIME   KTIME     STATUS");
 
 
-	char name    [26];
-	char pid     [26];
-	char uid     [26];
-	char priority[26];
-	char nice    [26];
-	char utime   [26];
-	char ktime   [26];
+	char name     [26];
+	char pid      [26];
+	char uid      [26];
+	char queue    [26];
+	char position [26];
+	char quantum  [26];
+	char utime    [26];
+	char ktime    [26];
 
 	const char *states[7];
 	states[0] = "DEAD";
@@ -122,13 +123,16 @@ PUBLIC int sys_ps()
 		prepareValue(p->pid, pid, 6);
 
 		/* Remaining Quantum */
-		prepareValue(p->uid, uid, 10);
+		prepareValue(p->uid, uid, 5);
 
-		/* Priority */
-		prepareValue(p->priority, priority, 11);
+		/* Queue */
+		prepareValue(p->queue, queue, 7);
 
-		/* Nice */
-		prepareValue(p->nice, nice, 7);
+		/* Queue position */
+		prepareValue(p->queue_position, position, 6);
+
+		/* Process quantum */
+		prepareValue(p->curr_quantum, quantum, 10);
 
 		/* Utime */
 		prepareValue(p->utime, utime, 8);
@@ -136,8 +140,8 @@ PUBLIC int sys_ps()
 		/* Ktime */
 		prepareValue(p->ktime, ktime, 10);
 		
-		kprintf("%s%s%s%s%s%s%s%s",name, pid, 
-			uid, priority, nice, utime, ktime, states[(int)p->state] );
+		kprintf("%s%s%s%s%s%s%s%s%s",name, pid, 
+			uid, queue, position, quantum, utime, ktime, states[(int)p->state] );
 	}
 
 	kprintf("\nLast process: %s, pid: %d\n",last_proc->name, last_proc->pid);

@@ -154,6 +154,9 @@ found:
 	proc->alarm = 0;
 	proc->next = NULL;
 	proc->chain = NULL;
+	proc->curr_quantum = BASE_QUANTUM;
+	proc->queue = 0;
+	proc->queue_position = NEXT_INDEX(proc->queue);
 	sched(proc);
 
 	curr_proc->nchildren++;

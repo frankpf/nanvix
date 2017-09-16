@@ -200,6 +200,9 @@
     	unsigned state;          /**< Current state.          */
     	int counter;             /**< Remaining quantum.      */
     	int priority;            /**< Process priorities.     */
+    	int queue;
+		int queue_position;
+    	int curr_quantum;
     	int nice;                /**< Nice for scheduling.    */
     	unsigned alarm;          /**< Alarm.                  */
 		struct process *next;    /**< Next process in a list. */
@@ -217,6 +220,7 @@
 	EXTERN void sndsig(struct process *, int);
 	EXTERN void wakeup(struct process **);
 	EXTERN void yield(void);
+	EXTERN int NEXT_INDEX(int queue);
 	
 	/**
 	 * @name Process memory regions
@@ -279,6 +283,9 @@
 	EXTERN struct process *last_proc;
 	EXTERN pid_t next_pid;
 	EXTERN unsigned nprocs;
+
+	#define MAX_QUEUE 10
+	#define BASE_QUANTUM 5
 
 #endif /* _ASM_FILE */
 
