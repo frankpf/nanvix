@@ -17,6 +17,7 @@
  * along with Nanvix. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <nanvix/klib.h>
 #include <nanvix/config.h>
 #include <nanvix/const.h>
 #include <nanvix/hal.h>
@@ -26,6 +27,13 @@
 #include <sys/types.h>
 #include <errno.h>
 
+
+PUBLIC void print_proctab() {
+	struct process *p;
+	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
+		kprintf("[%d/%d] ", p->queue, p->queue_position);
+	}
+}
 /*
  * Creates a new process.
  */
@@ -154,10 +162,14 @@ found:
 	proc->alarm = 0;
 	proc->next = NULL;
 	proc->chain = NULL;
+	proc->counter = BASE_QUANTUM;
 	proc->curr_quantum = BASE_QUANTUM;
 	proc->queue = 0;
-	proc->queue_position = NEXT_INDEX(proc->queue);
+	proc->queue_position = next_index(proc->queue);
 	sched(proc);
+
+//	kprintf("Criando processo na fila %d com posição %d", proc->queue, proc->queue_position);
+//	print_proctab();
 
 	curr_proc->nchildren++;
 	

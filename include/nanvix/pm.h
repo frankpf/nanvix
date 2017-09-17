@@ -220,7 +220,7 @@
 	EXTERN void sndsig(struct process *, int);
 	EXTERN void wakeup(struct process **);
 	EXTERN void yield(void);
-	EXTERN int NEXT_INDEX(int queue);
+	EXTERN int next_index(int queue);
 	
 	/**
 	 * @name Process memory regions
@@ -285,7 +285,7 @@
 	EXTERN unsigned nprocs;
 
 	#define MAX_QUEUE 10
-	#define BASE_QUANTUM 20
+	#define BASE_QUANTUM 50
 
 #endif /* _ASM_FILE */
 

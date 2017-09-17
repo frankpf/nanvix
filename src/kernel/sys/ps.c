@@ -132,7 +132,7 @@ PUBLIC int sys_ps()
 		prepareValue(p->queue_position, position, 6);
 
 		/* Process quantum */
-		prepareValue(p->curr_quantum, quantum, 10);
+		prepareValue(p->counter, quantum, 10);
 
 		/* Utime */
 		prepareValue(p->utime, utime, 8);
