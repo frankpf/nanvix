@@ -33,7 +33,6 @@
 PUBLIC void sched(struct process *proc)
 {
 	proc->state = PROC_READY;
-	proc->counter = 0;
 }
 
 /**
@@ -78,7 +77,7 @@ PUBLIC int queue_quantum(int queue) {
 }
 
 /* Used to implement the queue feedback mechanism */
-#define REARRANGE_PERIOD 4096
+#define REARRANGE_PERIOD 32768
 PRIVATE int YIELD_CALLS = 0;
 
 /**
@@ -94,8 +93,7 @@ PUBLIC void yield(void)
     	int i = 0;
     	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
     		p->queue = 0;
-			p->curr_quantum = queue_quantum(0);
-			p->counter = p->curr_quantum;
+			p->counter = queue_quantum(0);
     		/* Workaround to prevent integer overflow */
     		p->queue_position = i;
     		i++;
@@ -110,18 +108,13 @@ PUBLIC void yield(void)
 	/* Remember this process. */
 	last_proc = curr_proc;
 
-	if (curr_proc->queue < MAX_QUEUE && curr_proc->curr_quantum == 0) {
-		/* Move down one queue the running process
-		 * when its time slice is over */
-		curr_proc->queue++;
-		curr_proc->curr_quantum = queue_quantum(curr_proc->queue);
-		curr_proc->counter = curr_proc->curr_quantum;
-	} else if (curr_proc->queue == MAX_QUEUE && curr_proc->curr_quantum == 0) {
-		curr_proc->curr_quantum = queue_quantum(curr_proc->queue);
-		curr_proc->counter = curr_proc->curr_quantum;
-	} else {
-		/* Update current process quantum */
-		curr_proc->curr_quantum = curr_proc->counter;
+	if (curr_proc->counter == 0) {
+		if (curr_proc->queue < MAX_QUEUE) {
+			/* Move down one queue if not on the last one */
+			curr_proc->queue++;
+		}
+		/* Update the quantum to be the queue's quantum */
+		curr_proc->counter = queue_quantum(curr_proc->queue);
 	}
 
 	/* Update queue position to next open position */
@@ -142,7 +135,7 @@ PUBLIC void yield(void)
 	int min_queue = MAX_QUEUE;
 	/* Find queue with the highest priority (minimum queue) */
 	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
-		if (IS_VALID(p) && p->state == PROC_READY && p->queue < min_queue) {
+		if ((p->state == PROC_READY || p->state == PROC_RUNNING) && p->queue < min_queue) {
 			min_queue = p->queue;
 		}
 	}
@@ -156,7 +149,7 @@ PUBLIC void yield(void)
 			continue;
 		}
 	
-		if (IS_VALID(p) && p->state == PROC_READY && p->queue_position < min_position) {
+		if ((p->state == PROC_READY || p->state == PROC_RUNNING) && p->queue_position < min_position) {
 			min_position = p->queue_position;
 			next = p;
 		}
@@ -167,6 +160,6 @@ PUBLIC void yield(void)
 	/* Switch to next process. */
 	next->priority = PRIO_USER;
 	next->state = PROC_RUNNING;
-	next->counter = next->curr_quantum;
+	next->counter = next->counter;
 	switch_to(next);
 }
