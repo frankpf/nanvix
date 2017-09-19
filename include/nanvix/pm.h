@@ -283,8 +283,8 @@
 	EXTERN pid_t next_pid;
 	EXTERN unsigned nprocs;
 
-	#define NUM_QUEUES 3
-	#define QUEUE_SIZE 3
+	#define NUM_QUEUES 10
+	#define QUEUE_SIZE 10
 	#define BASE_QUANTUM 50
 
 
