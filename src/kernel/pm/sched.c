@@ -27,7 +27,7 @@
 
 /**
  * @brief Schedules a process to execution.
- * 
+ *
  * @param proc Process to be scheduled.
  */
 PUBLIC void sched(struct process *proc)
@@ -47,39 +47,37 @@ PUBLIC void stop(void)
 
 /**
  * @brief Resumes a process.
- * 
+ *
  * @param proc Process to be resumed.
- * 
+ *
  * @note The process must stopped to be resumed.
  */
 PUBLIC void resume(struct process *proc)
-{	
+{
 	/* Resume only if process has stopped. */
 	if (proc->state == PROC_STOPPED)
 		sched(proc);
 }
 
 /* Returns the next available index on a given queue */
-PUBLIC int next_index(int queue) {
-	struct process *p;
-	int max = 0;
-	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
-		if (p->queue == queue && p->queue_position > max) {
-			max = p->queue_position;
-		}
-	}
-	return max+1;
-}
+// PUBLIC int next_index(int queue) {
+// 	struct process *p;
+// 	int max = 0;
+// 	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
+// 		if (p->queue == queue && p->queue_position > max) {
+// 			max = p->queue_position;
+// 		}
+// 	}
+// 	return max+1;
+// }
 
 /* Returns the quantum for the given queue */
 PUBLIC int queue_quantum(int queue) {
 	return (queue + 1) * BASE_QUANTUM;
 }
-
 /* Used to implement the queue feedback mechanism */
 #define REARRANGE_PERIOD 32768
 PRIVATE int YIELD_CALLS = 0;
-
 /**
  * @brief Yields the processor.
  */
@@ -93,7 +91,8 @@ PUBLIC void yield(void)
     	int i = 0;
     	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
     		p->queue = 0;
-			p->counter = queue_quantum(0);
+				queue_counter[0]++;
+				p->counter = queue_quantum(0);
     		/* Workaround to prevent integer overflow */
     		p->queue_position = i;
     		i++;
@@ -112,21 +111,22 @@ PUBLIC void yield(void)
 		if (curr_proc->queue < MAX_QUEUE) {
 			/* Move down one queue if not on the last one */
 			curr_proc->queue++;
+			queue_counter[curr_proc->queue]++;
 		}
 		/* Update the quantum to be the queue's quantum */
 		curr_proc->counter = queue_quantum(curr_proc->queue);
 	}
 
 	/* Update queue position to next open position */
-	curr_proc->queue_position = next_index(curr_proc->queue);
-
+	// curr_proc->queue_position = next_index(curr_proc->queue);
+	curr_proc->queue_position = queue_counter[curr_proc->queue] + 1;
 	/* Check alarm. */
 	for (p = FIRST_PROC; p <= LAST_PROC; p++)
 	{
 		/* Skip invalid processes. */
 		if (!IS_VALID(p))
 			continue;
-		
+
 		/* Alarm has expired. */
 		if ((p->alarm) && (p->alarm < ticks))
 			p->alarm = 0, sndsig(p, SIGALRM);
@@ -139,7 +139,7 @@ PUBLIC void yield(void)
 			min_queue = p->queue;
 		}
 	}
-	
+
 	/* Find the first item of the chosen queue */
 	next = IDLE;
 	int min_position = INT_MAX;
@@ -148,7 +148,7 @@ PUBLIC void yield(void)
 		if (p->queue != min_queue) {
 			continue;
 		}
-	
+
 		if ((p->state == PROC_READY || p->state == PROC_RUNNING) && p->queue_position < min_position) {
 			min_position = p->queue_position;
 			next = p;
@@ -156,7 +156,7 @@ PUBLIC void yield(void)
 	}
 
 	YIELD_CALLS++;
-	
+
 	/* Switch to next process. */
 	next->priority = PRIO_USER;
 	next->state = PROC_RUNNING;
