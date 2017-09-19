@@ -59,6 +59,11 @@ PUBLIC void resume(struct process *proc)
 		sched(proc);
 }
 
+/* Returns the quantum for the given queue */
+PUBLIC int queue_quantum(int queue) {
+	return (queue + 1) * BASE_QUANTUM;
+}
+
 /* Returns the next available index on a given queue */
 PUBLIC int next_index(int queue) {
 	struct process *p;
@@ -71,14 +76,9 @@ PUBLIC int next_index(int queue) {
 	return max+1;
 }
 
-/* Returns the quantum for the given queue */
-PUBLIC int queue_quantum(int queue) {
-	return (queue + 1) * BASE_QUANTUM;
-}
-
 /* Used to implement the queue feedback mechanism */
-#define REARRANGE_PERIOD 32768
-PRIVATE int YIELD_CALLS = 0;
+#define REARRANGE_PERIOD 100000
+PRIVATE int YIELD_CALLS = 0; /**< Number of times yield() has run */
 
 /**
  * @brief Yields the processor.
@@ -87,6 +87,12 @@ PUBLIC void yield(void)
 {
 	struct process *p;    /* Working process.     */
 	struct process *next; /* Next process to run. */
+	
+	
+	/* Shows current process name, remaining quantum and queue */
+	// if (curr_proc->counter != queue_quantum(curr_proc->queue)) {  
+	//  kprintf("%s->%d, %d", curr_proc->name, curr_proc->counter, curr_proc->queue);
+	//  }
 
     /* Move all jobs to the topmost queue */
     if (YIELD_CALLS >= REARRANGE_PERIOD) {
@@ -116,7 +122,6 @@ PUBLIC void yield(void)
 		/* Update the quantum to be the queue's quantum */
 		curr_proc->counter = queue_quantum(curr_proc->queue);
 	}
-
 	/* Update queue position to next open position */
 	curr_proc->queue_position = next_index(curr_proc->queue);
 
@@ -160,6 +165,5 @@ PUBLIC void yield(void)
 	/* Switch to next process. */
 	next->priority = PRIO_USER;
 	next->state = PROC_RUNNING;
-	next->counter = next->counter;
 	switch_to(next);
 }

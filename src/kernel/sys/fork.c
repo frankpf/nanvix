@@ -163,7 +163,6 @@ found:
 	proc->next = NULL;
 	proc->chain = NULL;
 	proc->counter = BASE_QUANTUM;
-	proc->curr_quantum = BASE_QUANTUM;
 	proc->queue = 0;
 	proc->queue_position = next_index(proc->queue);
 	sched(proc);

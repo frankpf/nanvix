@@ -202,7 +202,6 @@
     	int priority;            /**< Process priorities.     */
     	int queue;
 		int queue_position;
-    	int curr_quantum;
     	int nice;                /**< Nice for scheduling.    */
     	unsigned alarm;          /**< Alarm.                  */
 		struct process *next;    /**< Next process in a list. */
