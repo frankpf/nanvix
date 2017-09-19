@@ -77,6 +77,7 @@ void init_queues(void) {
 }
 
 PUBLIC void enter_system(struct process *proc) {
+	if (!QUEUES_INIT) init_queues();
 	int initial_queue = 0;
 	proc->state = PROC_READY;
 	proc->queue = initial_queue;
@@ -97,7 +98,7 @@ PUBLIC void stop(void)
 PUBLIC void sched(struct process *proc)
 {
 	proc->state = PROC_READY;
-	proc->counter = 0;
+	proc->counter = queue_quantum(proc->queue);
 }
 
 /**
@@ -140,13 +141,15 @@ PRIVATE int YIELD_CALLS = 0;
  */
 PUBLIC void yield(void)
 {
-	init_queues();
+	if (!QUEUES_INIT) init_queues();
 	struct process *p;    /* Working process.     */
 	struct process *next; /* Next process to run. */
 
+	int err;
+
 	/* Re-schedule process for execution. */
 	if (curr_proc->state == PROC_RUNNING)
-		sched(curr_proc);
+		curr_proc->state = PROC_READY;
 
 	/* Remember this process. */
 	last_proc = curr_proc;
@@ -155,10 +158,13 @@ PUBLIC void yield(void)
 		if (curr_proc->queue < NUM_QUEUES) {
 			/* Move down one queue if not on the last one */
 			curr_proc->queue++;
-			rb_enqueue(queues[curr_proc->queue], curr_proc);
 		}
 		/* Update the quantum to be the queue's quantum */
 		curr_proc->counter = queue_quantum(curr_proc->queue);
+		err = rb_enqueue(queues[curr_proc->queue], curr_proc);
+		if (err == 1) {
+			kprintf("ERROR: Queue %d full!", curr_proc->queue);
+		}
 	}
 
 	/* Check alarm. */
