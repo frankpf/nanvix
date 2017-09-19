@@ -220,8 +220,7 @@
 	EXTERN void sndsig(struct process *, int);
 	EXTERN void wakeup(struct process **);
 	EXTERN void yield(void);
-	EXTERN int next_index(int queue);
-	
+	EXTERN int queue_quantum(int queue);
 	/**
 	 * @name Process memory regions
 	 */
@@ -284,8 +283,26 @@
 	EXTERN pid_t next_pid;
 	EXTERN unsigned nprocs;
 
-	#define MAX_QUEUE 10
+	#define NUM_QUEUES 3
+	#define QUEUE_SIZE 3
 	#define BASE_QUANTUM 50
+
+
+	typedef struct process rb_val;
+	struct ring_buffer {
+		rb_val *buffer[QUEUE_SIZE];
+		int capacity; // Maximum items of buffer 
+		int count; // Number of items in buffer
+		int head; // Index of head
+		int tail; // Index of tail
+	};
+	EXTERN void rb_init(struct ring_buffer *rb);
+	EXTERN int rb_enqueue(struct ring_buffer *rb, rb_val *item);
+	EXTERN rb_val *rb_dequeue(struct ring_buffer *rb);
+	EXTERN int rb_full(struct ring_buffer *rb);
+	EXTERN int rb_empty(struct ring_buffer *rb);
+	EXTERN struct ring_buffer *queues[NUM_QUEUES];
+	EXTERN void enter_system(struct process *proc);
 
 #endif /* _ASM_FILE */
 

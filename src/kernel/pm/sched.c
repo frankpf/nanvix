@@ -25,14 +25,63 @@
 #include <nanvix/pm.h>
 #include <signal.h>
 
-/**
- * @brief Schedules a process to execution.
- * 
- * @param proc Process to be scheduled.
- */
-PUBLIC void sched(struct process *proc)
-{
+/*****************************************
+ * FIFO QUEUE
+ *****************************************/
+
+
+void rb_init(struct ring_buffer *rb) {
+	rb->count = 0;
+	rb->head = -1;
+	rb->tail = -1;
+}
+
+int rb_enqueue(struct ring_buffer *rb, rb_val *item) {
+	if (rb_full(rb)) {
+		return 1;
+	}
+
+	rb->count++;
+	rb->tail = (rb->tail+1) % QUEUE_SIZE;
+	rb->buffer[rb->tail] = item;
+	return 0;
+}
+
+rb_val *rb_dequeue(struct ring_buffer *rb) {
+	if (rb_empty(rb)) {
+		return NULL;
+	}
+
+	rb->count--;
+	rb->head = (rb->head+1) % QUEUE_SIZE;
+	return rb->buffer[rb->head];
+}
+
+int rb_full(struct ring_buffer *rb) {
+	return rb->count == QUEUE_SIZE;
+}
+
+int rb_empty(struct ring_buffer *rb) {
+	return rb->count == 0;
+}
+
+struct ring_buffer *queues[NUM_QUEUES];
+
+int QUEUES_INIT = 0;
+void init_queues(void) {
+	int i;
+	for (i = 0; i < NUM_QUEUES; i++) {
+		rb_init(queues[i]);
+	}
+	QUEUES_INIT = 1;
+}
+
+PUBLIC void enter_system(struct process *proc) {
+	int initial_queue = 0;
 	proc->state = PROC_READY;
+	proc->queue = initial_queue;
+	proc->counter = queue_quantum(initial_queue);
+	rb_enqueue(queues[initial_queue], proc);
 }
 
 /**
@@ -43,6 +92,12 @@ PUBLIC void stop(void)
 	curr_proc->state = PROC_STOPPED;
 	sndsig(curr_proc->father, SIGCHLD);
 	yield();
+}
+
+PUBLIC void sched(struct process *proc)
+{
+	proc->state = PROC_READY;
+	proc->counter = 0;
 }
 
 /**
@@ -85,21 +140,9 @@ PRIVATE int YIELD_CALLS = 0;
  */
 PUBLIC void yield(void)
 {
+	init_queues();
 	struct process *p;    /* Working process.     */
 	struct process *next; /* Next process to run. */
-
-    /* Move all jobs to the topmost queue */
-    if (YIELD_CALLS >= REARRANGE_PERIOD) {
-    	int i = 0;
-    	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
-    		p->queue = 0;
-			p->counter = queue_quantum(0);
-    		/* Workaround to prevent integer overflow */
-    		p->queue_position = i;
-    		i++;
-    	}
-    	YIELD_CALLS = 0;
-    }
 
 	/* Re-schedule process for execution. */
 	if (curr_proc->state == PROC_RUNNING)
@@ -109,16 +152,14 @@ PUBLIC void yield(void)
 	last_proc = curr_proc;
 
 	if (curr_proc->counter == 0) {
-		if (curr_proc->queue < MAX_QUEUE) {
+		if (curr_proc->queue < NUM_QUEUES) {
 			/* Move down one queue if not on the last one */
 			curr_proc->queue++;
+			rb_enqueue(queues[curr_proc->queue], curr_proc);
 		}
 		/* Update the quantum to be the queue's quantum */
 		curr_proc->counter = queue_quantum(curr_proc->queue);
 	}
-
-	/* Update queue position to next open position */
-	curr_proc->queue_position = next_index(curr_proc->queue);
 
 	/* Check alarm. */
 	for (p = FIRST_PROC; p <= LAST_PROC; p++)
@@ -132,26 +173,15 @@ PUBLIC void yield(void)
 			p->alarm = 0, sndsig(p, SIGALRM);
 	}
 
-	int min_queue = MAX_QUEUE;
-	/* Find queue with the highest priority (minimum queue) */
-	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
-		if ((p->state == PROC_READY || p->state == PROC_RUNNING) && p->queue < min_queue) {
-			min_queue = p->queue;
-		}
-	}
-	
-	/* Find the first item of the chosen queue */
+
 	next = IDLE;
-	int min_position = INT_MAX;
-	for (p = FIRST_PROC; p <= LAST_PROC; p++) {
-		/* Skip processes not in min. queue */
-		if (p->queue != min_queue) {
-			continue;
-		}
-	
-		if ((p->state == PROC_READY || p->state == PROC_RUNNING) && p->queue_position < min_position) {
-			min_position = p->queue_position;
-			next = p;
+	int i;
+	for (i = 0; i < NUM_QUEUES; i++) {
+		struct ring_buffer *queue = queues[i];
+		struct process *item = rb_dequeue(queue);
+		if (item != NULL) {
+			next = item;
+			break;
 		}
 	}
 
@@ -160,6 +190,5 @@ PUBLIC void yield(void)
 	/* Switch to next process. */
 	next->priority = PRIO_USER;
 	next->state = PROC_RUNNING;
-	next->counter = next->counter;
 	switch_to(next);
 }
