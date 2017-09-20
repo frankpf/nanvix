@@ -284,7 +284,6 @@
 	EXTERN unsigned nprocs;
 
 	#define MAX_QUEUE 10
-	#define BASE_QUANTUM 50
 
 #endif /* _ASM_FILE */
 

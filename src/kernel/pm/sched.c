@@ -61,7 +61,7 @@ PUBLIC void resume(struct process *proc)
 
 /* Returns the quantum for the given queue */
 PUBLIC int queue_quantum(int queue) {
-	return (queue + 1) * BASE_QUANTUM;
+	return (queue * 10) + PROC_QUANTUM;
 }
 
 /* Returns the next available index on a given queue */
@@ -90,9 +90,9 @@ PUBLIC void yield(void)
 	
 	
 	/* Shows current process name, remaining quantum and queue */
-	// if (curr_proc->counter != queue_quantum(curr_proc->queue)) {  
-	//  kprintf("%s->%d, %d", curr_proc->name, curr_proc->counter, curr_proc->queue);
-	//  }
+	if (curr_proc->counter != queue_quantum(curr_proc->queue) && (kstrcmp(curr_proc->name, "ls")==0)) {  
+	 kprintf("%s->%d, %d", curr_proc->name, curr_proc->counter, curr_proc->queue);
+	 }
 
     /* Move all jobs to the topmost queue */
     if (YIELD_CALLS >= REARRANGE_PERIOD) {
