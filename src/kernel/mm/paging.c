@@ -150,7 +150,7 @@ error0:
 }
 
 /**
- * @brief Swaps a page in to disk.
+ * @brief Swaps a page in from disk.
  * 
  * @param frame Frame number where the page should be placed.
  * @param addr  Address of the page to be swapped in.
@@ -284,54 +284,78 @@ PRIVATE struct
 	addr_t addr;    /**< Address of the page. */
 } frames[NR_FRAMES] = {{0, 0, 0, 0},  };
 
+int LAST_FRAME_INDEX = 0;
+unsigned WS_CLOCK_TIME = 4;
+
 /**
  * @brief Allocates a page frame.
  * 
  * @returns Upon success, the number of the frame is returned. Upon failure, a
  *          negative number is returned instead.
  */
+
+
 PRIVATE int allocf(void)
 {
 	int i;      /* Loop index.  */
-	int oldest; /* Oldest page. */
-	
-	#define OLDEST(x, y) (frames[x].age < frames[y].age)
-	
-	/* Search for a free frame. */
-	oldest = -1;
-	for (i = 0; i < NR_FRAMES; i++)
-	{
-		/* Found it. */
-		if (frames[i].count == 0)
+
+	for (i = 0; i < NR_FRAMES; i++) {
+
+		if (frames[LAST_FRAME_INDEX].count == 0) {
 			goto found;
-		
-		/* Local page replacement policy. */
-		if (frames[i].owner == curr_proc->pid)
-		{
-			/* Skip shared pages. */
-			if (frames[i].count > 1)
+		}
+
+		if (frames[LAST_FRAME_INDEX].owner == curr_proc->pid) {
+			// Skip shared pages. ./
+			if (frames[LAST_FRAME_INDEX].count > 1) {
+				LAST_FRAME_INDEX = (LAST_FRAME_INDEX + 1) % NR_FRAMES;
 				continue;
-			
-			/* Oldest page found. */
-			if ((oldest < 0) || (OLDEST(i, oldest)))
-				oldest = i;
+			}
+
+			struct pte *pg = getpte(curr_proc, frames[LAST_FRAME_INDEX].addr);
+			if (pg->accessed == 1) {
+				pg->accessed = 0;
+				frames[LAST_FRAME_INDEX].age = curr_proc->utime;
+				LAST_FRAME_INDEX = (LAST_FRAME_INDEX + 1) % NR_FRAMES;
+				continue;
+			} else {
+				unsigned age = curr_proc->utime - frames[LAST_FRAME_INDEX].age;
+				if (age > WS_CLOCK_TIME) {
+					if (pg->dirty == 0) {
+						goto found;
+					} else {
+						int err = swap_out(curr_proc, frames[LAST_FRAME_INDEX].addr);
+						if (err) return -1;
+
+						pg->dirty = 0;
+						LAST_FRAME_INDEX = (LAST_FRAME_INDEX + 1) % NR_FRAMES;
+						continue;
+					}
+				}
+			}
 		}
 	}
-	
-	/* No frame left. */
-	if (oldest < 0)
-		return (-1);
-	
-	/* Swap page out. */
-	if (swap_out(curr_proc, frames[i = oldest].addr))
-		return (-1);
+
+	for (i = 0; i < NR_FRAMES; i++) {
+		LAST_FRAME_INDEX = (LAST_FRAME_INDEX + 1) % NR_FRAMES;
+
+		struct pte *pg = getpte(curr_proc, frames[LAST_FRAME_INDEX].addr);
+
+		if (pg->dirty == 0) {
+			goto found;
+		}
+	}
+
+	LAST_FRAME_INDEX = (LAST_FRAME_INDEX + 1) % NR_FRAMES;
+	struct pte *pg = getpte(curr_proc, frames[LAST_FRAME_INDEX].addr);
+	int err = swap_out(curr_proc, frames[LAST_FRAME_INDEX].addr);
+	if (err) return -1;
+	pg->dirty = 0;
 	
 found:		
-
-	frames[i].age = ticks;
-	frames[i].count = 1;
+	frames[LAST_FRAME_INDEX].count = 1;
 	
-	return (i);
+	return LAST_FRAME_INDEX;
 }
 
 /**
